@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package sensor;
+
+message SensorData {
+  string sensor_id = 1;
+  string sensor_type = 2;  // temperature, humidity, pressure, etc.
+  double value = 3;
+  string unit = 4;  // Celsius, %, hPa, etc.
+  int64 timestamp = 5;  // Unix timestamp
+  string location = 6;
+}
+
+message SensorDataList {
+  repeated SensorData sensors = 1;
+} 

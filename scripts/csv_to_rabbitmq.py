@@ -9,28 +9,29 @@ import time
 project_root = str(Path(__file__).parent.parent)
 sys.path.append(project_root)
 
-from bridge_service.proto.employee_pb2 import Employee, EmployeeList
+from bridge_service.proto.sensor_pb2 import SensorData, SensorDataList
 
 def read_csv(file_path):
     """Read CSV file and return list of dictionaries"""
-    employees = []
+    sensors = []
     with open(file_path, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            employees.append(row)
-    return employees
+            sensors.append(row)
+    return sensors
 
-def create_proto_message(employees):
+def create_proto_message(sensors):
     """Convert list of dictionaries to protobuf message"""
-    employee_list = EmployeeList()
-    for emp in employees:
-        employee = employee_list.employees.add()
-        employee.id = int(emp['id'])
-        employee.name = emp['name']
-        employee.age = int(emp['age'])
-        employee.city = emp['city']
-        employee.salary = int(emp['salary'])
-    return employee_list
+    sensor_list = SensorDataList()
+    for sensor in sensors:
+        sensor_data = sensor_list.sensors.add()
+        sensor_data.sensor_id = sensor['sensor_id']
+        sensor_data.sensor_type = sensor['sensor_type']
+        sensor_data.value = float(sensor['value'])
+        sensor_data.unit = sensor['unit']
+        sensor_data.timestamp = int(sensor['timestamp'])
+        sensor_data.location = sensor['location']
+    return sensor_list
 
 def compress_message(message):
     """Compress protobuf message using zlib"""
@@ -49,7 +50,7 @@ def setup_rabbitmq():
     channel = connection.channel()
     
     # Declare the queue
-    channel.queue_declare(queue='employee_queue', durable=True)
+    channel.queue_declare(queue='sensor_queue', durable=True)
     return connection, channel
 
 def main():
@@ -57,11 +58,11 @@ def main():
     csv_path = Path(project_root) / 'data' / 'sample.csv'
     print(f"Reading CSV from: {csv_path}")
     
-    employees = read_csv(csv_path)
-    print(f"Read {len(employees)} employees from CSV")
+    sensors = read_csv(csv_path)
+    print(f"Read {len(sensors)} sensor readings from CSV")
     
     # Convert to protobuf
-    proto_message = create_proto_message(employees)
+    proto_message = create_proto_message(sensors)
     print("Converted to protobuf message")
     
     # Compress
@@ -76,7 +77,7 @@ def main():
         # Send to RabbitMQ
         channel.basic_publish(
             exchange='',
-            routing_key='employee_queue',
+            routing_key='sensor_queue',
             body=compressed_data,
             properties=pika.BasicProperties(
                 delivery_mode=2,  # make message persistent

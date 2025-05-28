@@ -1,6 +1,6 @@
-id,name,age,city,salary
-1,John Doe,30,New York,75000
-2,Jane Smith,28,San Francisco,82000
-3,Bob Johnson,35,Chicago,68000
-4,Alice Brown,32,Seattle,91000
-5,Charlie Wilson,29,Boston,78000 
+sensor_id,sensor_type,value,unit,timestamp,location
+SENSOR_001,temperature,23.5,Celsius,1709123456,Room 101
+SENSOR_002,humidity,45.2,%,1709123456,Room 102
+SENSOR_003,pressure,1013.2,hPa,1709123456,Room 103
+SENSOR_004,light,850,lux,1709123456,Room 104
+SENSOR_005,noise,35.8,dB,1709123456,Room 105 

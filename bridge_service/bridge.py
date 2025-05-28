@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 # RabbitMQ configuration
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'rabbitmq')
 RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', 5672))
-RABBITMQ_QUEUE = 'employee_queue'
+RABBITMQ_QUEUE = 'sensor_queue'
 
 # Kafka configuration
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:29092')
-KAFKA_TOPIC = 'employee_topic'
+KAFKA_TOPIC = 'sensor_metrics'
 
 def wait_for_rabbitmq(max_retries=30, retry_interval=2):
     """Wait for RabbitMQ to be ready"""

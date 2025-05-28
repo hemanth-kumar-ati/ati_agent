@@ -1,0 +1,6 @@
+sensor_id,sensor_type,value,unit,timestamp,location
+SENSOR_001,temperature,23.5,Celsius,2024-02-28 18:00:56,Room 101
+SENSOR_002,humidity,45.2,%,2024-02-28 18:00:56,Room 102
+SENSOR_003,pressure,1013.2,hPa,2024-02-28 18:00:56,Room 103
+SENSOR_004,light,850.0,lux,2024-02-28 18:00:56,Room 104
+SENSOR_005,noise,35.8,dB,2024-02-28 18:00:56,Room 105 

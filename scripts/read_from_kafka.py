@@ -5,12 +5,13 @@ import zlib
 import csv
 from pathlib import Path
 import sys
+from datetime import datetime
 
 # Add the project root to Python path
 project_root = str(Path(__file__).parent.parent)
 sys.path.append(project_root)
 
-from bridge_service.proto.employee_pb2 import EmployeeList
+from bridge_service.proto.sensor_pb2 import SensorDataList
 
 # Print all environment variables for debugging
 print("Environment variables:")
@@ -20,8 +21,8 @@ for key, value in os.environ.items():
 
 # Kafka configuration
 KAFKA_BOOTSTRAP_SERVERS = 'localhost:9092'  # Use localhost since we're running on host machine
-KAFKA_TOPIC = 'employee_topic'
-KAFKA_GROUP_ID = 'employee_consumer_group'
+KAFKA_TOPIC = 'sensor_metrics'
+KAFKA_GROUP_ID = 'sensor_consumer_group'
 
 def setup_consumer():
     """Setup Kafka consumer"""
@@ -36,19 +37,20 @@ def decompress_message(compressed_data):
     """Decompress message using zlib"""
     return zlib.decompress(compressed_data)
 
-def write_to_csv(employees, output_path):
-    """Write employee data to CSV file"""
-    fieldnames = ['id', 'name', 'age', 'city', 'salary']
+def write_to_csv(sensors, output_path):
+    """Write sensor data to CSV file"""
+    fieldnames = ['sensor_id', 'sensor_type', 'value', 'unit', 'timestamp', 'location']
     with open(output_path, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        for emp in employees:
+        for sensor in sensors:
             writer.writerow({
-                'id': emp.id,
-                'name': emp.name,
-                'age': emp.age,
-                'city': emp.city,
-                'salary': emp.salary
+                'sensor_id': sensor.sensor_id,
+                'sensor_type': sensor.sensor_type,
+                'value': sensor.value,
+                'unit': sensor.unit,
+                'timestamp': datetime.fromtimestamp(sensor.timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                'location': sensor.location
             })
 
 def process_message(msg):
@@ -59,16 +61,30 @@ def process_message(msg):
         print(f"Decompressed size: {len(decompressed_data)} bytes")
         
         # Parse the protobuf message
-        employee_list = EmployeeList()
-        employee_list.ParseFromString(decompressed_data)
+        sensor_list = SensorDataList()
+        sensor_list.ParseFromString(decompressed_data)
+        
+        # Print sensor data
+        print("\nReceived sensor data:")
+        for sensor in sensor_list.sensors:
+            print(f"Sensor: {sensor.sensor_id}")
+            print(f"Type: {sensor.sensor_type}")
+            print(f"Value: {sensor.value} {sensor.unit}")
+            print(f"Location: {sensor.location}")
+            print(f"Timestamp: {datetime.fromtimestamp(sensor.timestamp)}")
+            print("---")
         
         # Write to CSV
-        output_path = Path(project_root) / 'data' / 'output.csv'
-        write_to_csv(employee_list.employees, output_path)
-        print(f"Wrote {len(employee_list.employees)} employees to {output_path}")
+        output_path = Path(project_root) / 'data' / 'sensor_output.csv'
+        write_to_csv(sensor_list.sensors, output_path)
+        print(f"Wrote {len(sensor_list.sensors)} sensor readings to {output_path}")
+        
+        # Commit the offset after successful processing
+        return True
         
     except Exception as e:
         print(f"Error processing message: {e}")
+        return False
 
 def main():
     print("\nStarting Kafka consumer...")
@@ -91,7 +107,9 @@ def main():
                     continue
                 print(f"Error: {msg.error()}")
             else:
-                process_message(msg)
+                # Process message and commit if successful
+                if process_message(msg):
+                    consumer.commit(msg)
                 
     except KeyboardInterrupt:
         print("\nStopping consumer...")
