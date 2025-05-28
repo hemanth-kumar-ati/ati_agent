@@ -1,25 +1,32 @@
 import pika
-from confluent_kafka import Producer, KafkaError
+import json
+from confluent_kafka import Producer
+import sys
+from pathlib import Path
+import logging
 import time
 import os
-import logging
 from pika.exceptions import AMQPConnectionError
+
+# Add the project root to Python path
+project_root = str(Path(__file__).parent.parent)
+sys.path.append(project_root)
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 # RabbitMQ configuration
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'rabbitmq')
 RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', 5672))
-RABBITMQ_QUEUE = 'proto_queue'
+RABBITMQ_QUEUE = 'employee_queue'
 
 # Kafka configuration
-KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:9092')
-KAFKA_TOPIC = 'proto_topic'
+KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:29092')
+KAFKA_TOPIC = 'employee_topic'
 
 def wait_for_rabbitmq(max_retries=30, retry_interval=2):
     """Wait for RabbitMQ to be ready"""
@@ -50,11 +57,14 @@ def setup_rabbitmq():
         parameters = pika.ConnectionParameters(
             host=RABBITMQ_HOST,
             port=RABBITMQ_PORT,
-            credentials=credentials
+            credentials=credentials,
+            heartbeat=600,
+            blocked_connection_timeout=300
         )
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
-        channel.queue_declare(queue=RABBITMQ_QUEUE)
+        channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
+        channel.basic_qos(prefetch_count=1)
         logger.info(f"Successfully connected to RabbitMQ at {RABBITMQ_HOST}:{RABBITMQ_PORT}")
         return connection, channel
     except Exception as e:
@@ -95,24 +105,35 @@ def setup_kafka():
 def process_message(ch, method, properties, body, kafka_producer):
     """Process message from RabbitMQ and send to Kafka"""
     try:
-        logger.info(f"Received message from RabbitMQ, size: {len(body)} { body} bytes")
+        # Get content type and encoding from properties
+        content_type = properties.content_type or 'application/x-protobuf'
+        content_encoding = properties.content_encoding or 'zlib'
         
-            
-        # Send raw bytes to Kafka
+        logger.info(f"Received message from RabbitMQ:")
+        logger.info(f"- Content Type: {content_type}")
+        logger.info(f"- Content Encoding: {content_encoding}")
+        logger.info(f"- Message Size: {len(body)} bytes")
+        logger.info(f"- Delivery Tag: {method.delivery_tag}")
+        
+        # Forward the message to Kafka
+        logger.info(f"Sending message to Kafka topic: {KAFKA_TOPIC}")
         kafka_producer.produce(
             KAFKA_TOPIC,
-            value=body,  # Send raw bytes
+            body,
             callback=lambda err, msg: logger.info(f'Message relayed to Kafka: {msg.topic()} [{msg.partition()}]') if err is None else logger.error(f'Failed to relay message: {err}')
         )
-        kafka_producer.poll(0)
+        
+        # Wait for any outstanding messages to be delivered
+        kafka_producer.flush()
         
         # Acknowledge the message
         ch.basic_ack(delivery_tag=method.delivery_tag)
-        logger.info("Message processed successfully")
+        logger.info("Message processed and forwarded to Kafka successfully")
         
     except Exception as e:
-        logger.error(f"Error relaying message: {e}")
-        ch.basic_nack(delivery_tag=method.delivery_tag)
+        logger.error(f"Error processing message: {e}")
+        # Reject the message and requeue
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
 def main():
     logger.info("Starting bridge service...")

@@ -11,10 +11,6 @@ RUN apt-get update && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the proto file and generate Python code
-COPY proto/message.proto .
-RUN protoc --python_out=. message.proto
-
 # Copy the bridge service code
 COPY bridge.py .
 
