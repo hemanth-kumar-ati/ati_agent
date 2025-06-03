@@ -5,7 +5,7 @@ def generate_proto():
     """Generate Python code from protobuf definition"""
     project_root = Path(__file__).parent.parent
     proto_dir = project_root / 'bridge_service' / 'proto'
-    proto_file = proto_dir / 'employee.proto'
+    proto_file = proto_dir / 'metrics.proto'
     
     # Create output directory if it doesn't exist
     proto_dir.mkdir(parents=True, exist_ok=True)

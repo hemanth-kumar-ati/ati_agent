@@ -11,7 +11,7 @@ from datetime import datetime
 project_root = str(Path(__file__).parent.parent)
 sys.path.append(project_root)
 
-from bridge_service.proto.sensor_pb2 import SensorDataList
+from bridge_service.proto.metrics_pb2 import MetricData, MetricDataBatch
 
 # Print all environment variables for debugging
 print("Environment variables:")
@@ -39,18 +39,16 @@ def decompress_message(compressed_data):
 
 def write_to_csv(sensors, output_path):
     """Write sensor data to CSV file"""
-    fieldnames = ['sensor_id', 'sensor_type', 'value', 'unit', 'timestamp', 'location']
+    fieldnames = ['timestamp', 'value', 'source_id']
+    print("writing to csv")
+    print(sensors)
     with open(output_path, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
         for sensor in sensors:
             writer.writerow({
-                'sensor_id': sensor.sensor_id,
-                'sensor_type': sensor.sensor_type,
+                'timestamp': sensor.timestamp,
                 'value': sensor.value,
-                'unit': sensor.unit,
-                'timestamp': datetime.fromtimestamp(sensor.timestamp).strftime('%Y-%m-%d %H:%M:%S'),
-                'location': sensor.location
+                'source_id': sensor.source_id
             })
 
 def process_message(msg):
@@ -61,23 +59,16 @@ def process_message(msg):
         print(f"Decompressed size: {len(decompressed_data)} bytes")
         
         # Parse the protobuf message
-        sensor_list = SensorDataList()
+        sensor_list = MetricDataBatch()
         sensor_list.ParseFromString(decompressed_data)
         
         # Print sensor data
         print("\nReceived sensor data:")
-        for sensor in sensor_list.sensors:
-            print(f"Sensor: {sensor.sensor_id}")
-            print(f"Type: {sensor.sensor_type}")
-            print(f"Value: {sensor.value} {sensor.unit}")
-            print(f"Location: {sensor.location}")
-            print(f"Timestamp: {datetime.fromtimestamp(sensor.timestamp)}")
-            print("---")
-        
         # Write to CSV
         output_path = Path(project_root) / 'data' / 'sensor_output.csv'
-        write_to_csv(sensor_list.sensors, output_path)
-        print(f"Wrote {len(sensor_list.sensors)} sensor readings to {output_path}")
+        print(sensor_list)
+        write_to_csv(sensor_list.metrics, output_path)
+        print(f"Wrote {len(sensor_list.metrics)} sensor readings to {output_path}")
         
         # Commit the offset after successful processing
         return True

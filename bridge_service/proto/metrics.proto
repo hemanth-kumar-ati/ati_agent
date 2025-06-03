@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package metrics;
+
+option go_package = "metrics";
+
+// MetricData represents a single metric data point
+message MetricData {
+  string timestamp = 1;
+  double value = 2;
+  string source_id = 3;
+}
+
+// MetricDataBatch represents a collection of metric data points
+message MetricDataBatch {
+  repeated MetricData metrics = 1;
+} 

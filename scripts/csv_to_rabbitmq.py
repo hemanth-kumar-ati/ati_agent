@@ -4,12 +4,12 @@ import pika
 import sys
 from pathlib import Path
 import time
+from bridge_service.proto.sensor_pb2 import SensorData, SensorDataList
+from bridge_service.proto.metrics_pb2 import MetricData, MetricDataBatch
 
 # Add the project root to Python path
 project_root = str(Path(__file__).parent.parent)
 sys.path.append(project_root)
-
-from bridge_service.proto.sensor_pb2 import SensorData, SensorDataList
 
 def read_csv(file_path):
     """Read CSV file and return list of dictionaries"""
@@ -22,16 +22,13 @@ def read_csv(file_path):
 
 def create_proto_message(sensors):
     """Convert list of dictionaries to protobuf message"""
-    sensor_list = SensorDataList()
+    metric_batch = MetricDataBatch()
     for sensor in sensors:
-        sensor_data = sensor_list.sensors.add()
-        sensor_data.sensor_id = sensor['sensor_id']
-        sensor_data.sensor_type = sensor['sensor_type']
-        sensor_data.value = float(sensor['value'])
-        sensor_data.unit = sensor['unit']
-        sensor_data.timestamp = int(sensor['timestamp'])
-        sensor_data.location = sensor['location']
-    return sensor_list
+        metric = metric_batch.metrics.add()
+        metric.timestamp = sensor['timestamp']
+        metric.value = float(sensor['value'])
+        metric.source_id = sensor['source_id']
+    return metric_batch
 
 def compress_message(message):
     """Compress protobuf message using zlib"""
@@ -55,7 +52,7 @@ def setup_rabbitmq():
 
 def main():
     # Read and process CSV
-    csv_path = Path(project_root) / 'data' / 'sample.csv'
+    csv_path = Path(project_root) / 'data' / 'data.csv'
     print(f"Reading CSV from: {csv_path}")
     
     sensors = read_csv(csv_path)
